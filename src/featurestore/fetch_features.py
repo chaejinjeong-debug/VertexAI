@@ -82,10 +82,6 @@ def fetch_features(
         ),
     )
 
-    # 특정 피처만 조회할 경우
-    if feature_names:
-        request.data_format = FetchFeatureValuesRequest.FeatureViewDataFormat.KEY_VALUE
-
     logger.debug(f"피처 조회: entity_id={entity_id}")
 
     try:

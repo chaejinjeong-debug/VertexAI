@@ -1,0 +1,19 @@
+[project]
+name = "vertexai"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "db-dtypes>=1.1.0",
+    "google-cloud-aiplatform>=1.38.0",
+    "google-cloud-bigquery>=3.13.0",
+    "google-cloud-bigquery-storage>=2.22.0",
+    "google-cloud-storage>=2.13.0",
+    "joblib>=1.3.0",
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0",
+    "scikit-learn>=1.3.0",
+]

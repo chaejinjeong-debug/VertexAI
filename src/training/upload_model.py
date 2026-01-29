@@ -94,12 +94,19 @@ def upload_model(
     logger.info(f"모델 업로드 시작: {model_name}")
     logger.info(f"  Artifact URI: {artifact_uri}")
 
+    # 커스텀 서빙 컨테이너 URI
+    # sklearn 1.5+ 버전을 지원하기 위해 커스텀 컨테이너 사용
+    serving_container_uri = f"{region}-docker.pkg.dev/{project_id}/vertex-ai-models/sklearn-serving:latest"
+    logger.info(f"  Serving Container: {serving_container_uri}")
+
     # 모델 업로드
     model = aiplatform.Model.upload(
         display_name=model_name,
         description=model_config.get("description", ""),
         artifact_uri=artifact_uri,
-        serving_container_image_uri="us-docker.pkg.dev/vertex-ai/prediction/sklearn-cpu.1-3:latest",
+        serving_container_image_uri=serving_container_uri,
+        serving_container_predict_route="/predict",
+        serving_container_health_route="/health",
         labels={
             "framework": "sklearn",
             "task": "classification",
