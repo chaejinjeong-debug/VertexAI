@@ -1,0 +1,41 @@
+# Vertex AI Feature Store 리소스 설정
+
+# Online Store 설정
+online_store:
+  name: "thelook_online_store"
+  # Bigtable 기반 온라인 서빙
+  bigtable:
+    auto_scaling:
+      min_node_count: 1
+      max_node_count: 3
+      cpu_utilization_target: 50
+
+# Feature Group 설정
+feature_group:
+  name: "customer_features"
+  description: "theLook eCommerce 고객 피처"
+  # BigQuery 소스 설정
+  big_query_source:
+    # env.yaml의 target_dataset.features_customer 테이블 참조
+    entity_id_columns:
+      - "customer_id"
+
+# Feature View 설정
+feature_view:
+  name: "customer_feature_view"
+  description: "고객 피처 온라인 서빙 뷰"
+
+  # 동기화 설정
+  sync_config:
+    # Scheduled sync (cron 표현식)
+    # 매일 새벽 2시 실행
+    cron: "0 2 * * *"
+
+  # 피처 목록
+  features:
+    - "orders_7d"
+    - "orders_30d"
+    - "revenue_30d"
+    - "avg_order_value_30d"
+    - "days_since_last_order"
+    - "distinct_products_30d"

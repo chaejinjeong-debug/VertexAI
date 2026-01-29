@@ -1,0 +1,56 @@
+# 모델 학습 설정
+
+# 모델 정보
+model:
+  name: "repurchase_predictor"
+  display_name: "Customer Repurchase Predictor"
+  description: "14일 내 재구매 확률 예측 모델"
+
+  # 모델 타입 (scikit-learn)
+  framework: "sklearn"
+  framework_version: "1.3"
+
+# 학습 파라미터
+training:
+  # 타겟 컬럼
+  target_column: "label_repurchase_14d"
+
+  # 피처 컬럼 (Feature Store와 일치)
+  feature_columns:
+    - "orders_7d"
+    - "orders_30d"
+    - "revenue_30d"
+    - "avg_order_value_30d"
+    - "days_since_last_order"
+    - "distinct_products_30d"
+
+  # Train/Test 분할
+  test_size: 0.2
+  random_state: 42
+
+  # 모델 하이퍼파라미터 (RandomForestClassifier)
+  hyperparameters:
+    n_estimators: 100
+    max_depth: 10
+    min_samples_split: 5
+    min_samples_leaf: 2
+
+# Vertex AI Endpoint 설정
+endpoint:
+  name: "repurchase-endpoint"
+  display_name: "Repurchase Prediction Endpoint"
+
+  # 배포 리소스 설정
+  deployed_model:
+    machine_type: "n1-standard-2"
+    min_replica_count: 1
+    max_replica_count: 3
+
+# 평가 메트릭
+evaluation:
+  metrics:
+    - "accuracy"
+    - "auc"
+    - "precision"
+    - "recall"
+    - "f1"
