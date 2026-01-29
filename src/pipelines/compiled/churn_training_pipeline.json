@@ -1,0 +1,481 @@
+{
+  "components": {
+    "comp-data-load-op": {
+      "executorLabel": "exec-data-load-op",
+      "inputDefinitions": {
+        "parameters": {
+          "input_bq_table": {
+            "parameterType": "STRING"
+          },
+          "label_column": {
+            "parameterType": "STRING"
+          },
+          "time_column": {
+            "parameterType": "STRING"
+          },
+          "train_ratio": {
+            "parameterType": "NUMBER_DOUBLE"
+          },
+          "valid_ratio": {
+            "parameterType": "NUMBER_DOUBLE"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "artifacts": {
+          "output_dataset": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        }
+      }
+    },
+    "comp-eval-op": {
+      "executorLabel": "exec-eval-op",
+      "inputDefinitions": {
+        "artifacts": {
+          "input_dataset": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          },
+          "input_model": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        },
+        "parameters": {
+          "eval_split": {
+            "parameterType": "STRING"
+          },
+          "feature_columns": {
+            "parameterType": "STRING"
+          },
+          "label_column": {
+            "parameterType": "STRING"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "artifacts": {
+          "output_metrics": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        }
+      }
+    },
+    "comp-eval-op-2": {
+      "executorLabel": "exec-eval-op-2",
+      "inputDefinitions": {
+        "artifacts": {
+          "input_dataset": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          },
+          "input_model": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        },
+        "parameters": {
+          "eval_split": {
+            "parameterType": "STRING"
+          },
+          "feature_columns": {
+            "parameterType": "STRING"
+          },
+          "label_column": {
+            "parameterType": "STRING"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "artifacts": {
+          "output_metrics": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        }
+      }
+    },
+    "comp-train-op": {
+      "executorLabel": "exec-train-op",
+      "inputDefinitions": {
+        "artifacts": {
+          "input_dataset": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        },
+        "parameters": {
+          "feature_columns": {
+            "parameterType": "STRING"
+          },
+          "label_column": {
+            "parameterType": "STRING"
+          },
+          "max_depth": {
+            "parameterType": "NUMBER_INTEGER"
+          },
+          "model_type": {
+            "parameterType": "STRING"
+          },
+          "n_estimators": {
+            "parameterType": "NUMBER_INTEGER"
+          },
+          "random_state": {
+            "parameterType": "NUMBER_INTEGER"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "artifacts": {
+          "output_model": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        }
+      }
+    }
+  },
+  "deploymentSpec": {
+    "executors": {
+      "exec-data-load-op": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "data_load_op"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.15.2' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef data_load_op(\n    input_bq_table: str,\n    label_column: str,\n    time_column: str,\n    train_ratio: float,\n    valid_ratio: float,\n    output_dataset: Output[Artifact],\n) -> None:\n    \"\"\"Load data from BigQuery and split into train/valid/test.\"\"\"\n    import json\n    import subprocess\n    import sys\n\n    # Install dependencies\n    subprocess.check_call([sys.executable, \"-m\", \"pip\", \"install\", \"-q\",\n                           \"google-cloud-bigquery\", \"pandas\", \"pyarrow\", \"db-dtypes\"])\n\n    from pathlib import Path\n    import pandas as pd\n    from google.cloud import bigquery\n\n    output_dir = Path(output_dataset.path)\n    output_dir.mkdir(parents=True, exist_ok=True)\n\n    # Load from BigQuery\n    print(f\"Loading data from BigQuery: {input_bq_table}\")\n    client = bigquery.Client()\n    query = f\"SELECT * FROM `{input_bq_table}`\"\n    df = client.query(query).to_dataframe()\n    print(f\"Loaded {len(df):,} rows\")\n\n    # Time-based split\n    df_sorted = df.sort_values(time_column).reset_index(drop=True)\n    n = len(df_sorted)\n    train_end = int(n * train_ratio)\n    valid_end = int(n * (train_ratio + valid_ratio))\n\n    train_df = df_sorted.iloc[:train_end]\n    valid_df = df_sorted.iloc[train_end:valid_end]\n    test_df = df_sorted.iloc[valid_end:]\n\n    print(f\"Split: train={len(train_df):,}, valid={len(valid_df):,}, test={len(test_df):,}\")\n\n    # Save parquet files\n    train_df.to_parquet(output_dir / \"train.parquet\", index=False)\n    valid_df.to_parquet(output_dir / \"valid.parquet\", index=False)\n    test_df.to_parquet(output_dir / \"test.parquet\", index=False)\n\n    # Save metadata\n    metadata = {\n        \"train_samples\": len(train_df),\n        \"valid_samples\": len(valid_df),\n        \"test_samples\": len(test_df),\n        \"label_column\": label_column,\n        \"time_column\": time_column,\n        \"train_positive_rate\": float(train_df[label_column].mean()),\n        \"valid_positive_rate\": float(valid_df[label_column].mean()),\n        \"test_positive_rate\": float(test_df[label_column].mean()),\n    }\n    with open(output_dir / \"dataset_meta.json\", \"w\") as f:\n        json.dump(metadata, f, indent=2)\n\n    print(\"Data load completed\")\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      },
+      "exec-eval-op": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "eval_op"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.15.2' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef eval_op(\n    input_model: Input[Artifact],\n    input_dataset: Input[Artifact],\n    feature_columns: str,\n    label_column: str,\n    eval_split: str,\n    output_metrics: Output[Artifact],\n) -> None:\n    \"\"\"Evaluate the model on validation or test set.\"\"\"\n    import json\n    import subprocess\n    import sys\n\n    # Install dependencies\n    subprocess.check_call([sys.executable, \"-m\", \"pip\", \"install\", \"-q\",\n                           \"scikit-learn\", \"pandas\", \"pyarrow\", \"joblib\"])\n\n    from pathlib import Path\n    import joblib\n    import pandas as pd\n    from sklearn.metrics import (\n        accuracy_score,\n        average_precision_score,\n        f1_score,\n        precision_score,\n        recall_score,\n        roc_auc_score,\n    )\n\n    model_dir = Path(input_model.path)\n    dataset_dir = Path(input_dataset.path)\n    output_path = Path(output_metrics.path)\n    output_path.parent.mkdir(parents=True, exist_ok=True)\n\n    # Load model\n    model = joblib.load(model_dir / \"model.pkl\")\n    print(f\"Loaded model from {model_dir}\")\n\n    # Load data\n    df = pd.read_parquet(dataset_dir / f\"{eval_split}.parquet\")\n    print(f\"Loaded {len(df):,} {eval_split} samples\")\n\n    # Prepare features\n    features = [c.strip() for c in feature_columns.split(\",\")]\n    X = df[features].fillna(0)\n    y = df[label_column]\n\n    # Predict\n    y_pred = model.predict(X)\n    y_prob = model.predict_proba(X)[:, 1]\n\n    # Calculate metrics\n    metrics = {\n        \"eval_split\": eval_split,\n        \"eval_samples\": len(y),\n        \"positive_rate\": float(y.mean()),\n        \"accuracy\": float(accuracy_score(y, y_pred)),\n        \"precision\": float(precision_score(y, y_pred, zero_division=0)),\n        \"recall\": float(recall_score(y, y_pred, zero_division=0)),\n        \"f1\": float(f1_score(y, y_pred, zero_division=0)),\n        \"roc_auc\": float(roc_auc_score(y, y_prob)),\n        \"pr_auc\": float(average_precision_score(y, y_prob)),\n    }\n\n    # Save metrics\n    with open(output_path, \"w\") as f:\n        json.dump(metrics, f, indent=2)\n\n    print(f\"Evaluation Results ({eval_split}):\")\n    print(f\"  ROC-AUC: {metrics['roc_auc']:.4f}\")\n    print(f\"  PR-AUC:  {metrics['pr_auc']:.4f}\")\n    print(f\"  F1:      {metrics['f1']:.4f}\")\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      },
+      "exec-eval-op-2": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "eval_op"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.15.2' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef eval_op(\n    input_model: Input[Artifact],\n    input_dataset: Input[Artifact],\n    feature_columns: str,\n    label_column: str,\n    eval_split: str,\n    output_metrics: Output[Artifact],\n) -> None:\n    \"\"\"Evaluate the model on validation or test set.\"\"\"\n    import json\n    import subprocess\n    import sys\n\n    # Install dependencies\n    subprocess.check_call([sys.executable, \"-m\", \"pip\", \"install\", \"-q\",\n                           \"scikit-learn\", \"pandas\", \"pyarrow\", \"joblib\"])\n\n    from pathlib import Path\n    import joblib\n    import pandas as pd\n    from sklearn.metrics import (\n        accuracy_score,\n        average_precision_score,\n        f1_score,\n        precision_score,\n        recall_score,\n        roc_auc_score,\n    )\n\n    model_dir = Path(input_model.path)\n    dataset_dir = Path(input_dataset.path)\n    output_path = Path(output_metrics.path)\n    output_path.parent.mkdir(parents=True, exist_ok=True)\n\n    # Load model\n    model = joblib.load(model_dir / \"model.pkl\")\n    print(f\"Loaded model from {model_dir}\")\n\n    # Load data\n    df = pd.read_parquet(dataset_dir / f\"{eval_split}.parquet\")\n    print(f\"Loaded {len(df):,} {eval_split} samples\")\n\n    # Prepare features\n    features = [c.strip() for c in feature_columns.split(\",\")]\n    X = df[features].fillna(0)\n    y = df[label_column]\n\n    # Predict\n    y_pred = model.predict(X)\n    y_prob = model.predict_proba(X)[:, 1]\n\n    # Calculate metrics\n    metrics = {\n        \"eval_split\": eval_split,\n        \"eval_samples\": len(y),\n        \"positive_rate\": float(y.mean()),\n        \"accuracy\": float(accuracy_score(y, y_pred)),\n        \"precision\": float(precision_score(y, y_pred, zero_division=0)),\n        \"recall\": float(recall_score(y, y_pred, zero_division=0)),\n        \"f1\": float(f1_score(y, y_pred, zero_division=0)),\n        \"roc_auc\": float(roc_auc_score(y, y_prob)),\n        \"pr_auc\": float(average_precision_score(y, y_prob)),\n    }\n\n    # Save metrics\n    with open(output_path, \"w\") as f:\n        json.dump(metrics, f, indent=2)\n\n    print(f\"Evaluation Results ({eval_split}):\")\n    print(f\"  ROC-AUC: {metrics['roc_auc']:.4f}\")\n    print(f\"  PR-AUC:  {metrics['pr_auc']:.4f}\")\n    print(f\"  F1:      {metrics['f1']:.4f}\")\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      },
+      "exec-train-op": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "train_op"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.15.2' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef train_op(\n    input_dataset: Input[Artifact],\n    feature_columns: str,\n    label_column: str,\n    model_type: str,\n    n_estimators: int,\n    max_depth: int,\n    random_state: int,\n    output_model: Output[Artifact],\n) -> None:\n    \"\"\"Train a classification model.\"\"\"\n    import json\n    import subprocess\n    import sys\n\n    # Install dependencies\n    subprocess.check_call([sys.executable, \"-m\", \"pip\", \"install\", \"-q\",\n                           \"scikit-learn\", \"pandas\", \"pyarrow\", \"joblib\"])\n\n    from pathlib import Path\n    import joblib\n    import pandas as pd\n    from sklearn.ensemble import RandomForestClassifier\n    from sklearn.linear_model import LogisticRegression\n\n    input_dir = Path(input_dataset.path)\n    output_dir = Path(output_model.path)\n    output_dir.mkdir(parents=True, exist_ok=True)\n\n    # Load training data\n    train_df = pd.read_parquet(input_dir / \"train.parquet\")\n    print(f\"Loaded {len(train_df):,} training samples\")\n\n    # Prepare features\n    features = [c.strip() for c in feature_columns.split(\",\")]\n    X = train_df[features].fillna(0)\n    y = train_df[label_column]\n\n    print(f\"Features: {features}\")\n    print(f\"Label distribution: {y.value_counts().to_dict()}\")\n\n    # Create model\n    if model_type == \"random_forest\":\n        model = RandomForestClassifier(\n            n_estimators=n_estimators,\n            max_depth=max_depth,\n            random_state=random_state,\n            n_jobs=-1,\n        )\n    else:\n        model = LogisticRegression(random_state=random_state, max_iter=1000)\n\n    # Train\n    print(f\"Training {model_type}...\")\n    model.fit(X, y)\n    print(\"Training completed\")\n\n    # Save model\n    joblib.dump(model, output_dir / \"model.pkl\")\n\n    # Save metadata\n    metadata = {\n        \"model_type\": model_type,\n        \"feature_columns\": features,\n        \"label_column\": label_column,\n    }\n    if model_type == \"random_forest\":\n        metadata[\"feature_importances\"] = dict(zip(features, [float(x) for x in model.feature_importances_]))\n\n    with open(output_dir / \"model_meta.json\", \"w\") as f:\n        json.dump(metadata, f, indent=2)\n\n    print(f\"Model saved to {output_dir}\")\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      }
+    }
+  },
+  "pipelineInfo": {
+    "description": "Customer Churn \uc608\uce21 \ubaa8\ub378 \ud559\uc2b5 \ud30c\uc774\ud504\ub77c\uc778",
+    "name": "customer-churn-training-pipeline"
+  },
+  "root": {
+    "dag": {
+      "tasks": {
+        "data-load-op": {
+          "cachingOptions": {
+            "enableCache": true
+          },
+          "componentRef": {
+            "name": "comp-data-load-op"
+          },
+          "inputs": {
+            "parameters": {
+              "input_bq_table": {
+                "componentInputParameter": "input_bq_table"
+              },
+              "label_column": {
+                "componentInputParameter": "label_column"
+              },
+              "time_column": {
+                "componentInputParameter": "time_column"
+              },
+              "train_ratio": {
+                "componentInputParameter": "train_ratio"
+              },
+              "valid_ratio": {
+                "componentInputParameter": "valid_ratio"
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "Data Load"
+          }
+        },
+        "eval-op": {
+          "cachingOptions": {
+            "enableCache": true
+          },
+          "componentRef": {
+            "name": "comp-eval-op"
+          },
+          "dependentTasks": [
+            "data-load-op",
+            "train-op"
+          ],
+          "inputs": {
+            "artifacts": {
+              "input_dataset": {
+                "taskOutputArtifact": {
+                  "outputArtifactKey": "output_dataset",
+                  "producerTask": "data-load-op"
+                }
+              },
+              "input_model": {
+                "taskOutputArtifact": {
+                  "outputArtifactKey": "output_model",
+                  "producerTask": "train-op"
+                }
+              }
+            },
+            "parameters": {
+              "eval_split": {
+                "runtimeValue": {
+                  "constant": "valid"
+                }
+              },
+              "feature_columns": {
+                "runtimeValue": {
+                  "constant": "orders_30d,orders_90d,revenue_30d,revenue_90d,avg_order_value_90d,distinct_products_90d,distinct_categories_90d,days_since_last_order"
+                }
+              },
+              "label_column": {
+                "componentInputParameter": "label_column"
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "Evaluate (Valid)"
+          }
+        },
+        "eval-op-2": {
+          "cachingOptions": {
+            "enableCache": true
+          },
+          "componentRef": {
+            "name": "comp-eval-op-2"
+          },
+          "dependentTasks": [
+            "data-load-op",
+            "train-op"
+          ],
+          "inputs": {
+            "artifacts": {
+              "input_dataset": {
+                "taskOutputArtifact": {
+                  "outputArtifactKey": "output_dataset",
+                  "producerTask": "data-load-op"
+                }
+              },
+              "input_model": {
+                "taskOutputArtifact": {
+                  "outputArtifactKey": "output_model",
+                  "producerTask": "train-op"
+                }
+              }
+            },
+            "parameters": {
+              "eval_split": {
+                "runtimeValue": {
+                  "constant": "test"
+                }
+              },
+              "feature_columns": {
+                "runtimeValue": {
+                  "constant": "orders_30d,orders_90d,revenue_30d,revenue_90d,avg_order_value_90d,distinct_products_90d,distinct_categories_90d,days_since_last_order"
+                }
+              },
+              "label_column": {
+                "componentInputParameter": "label_column"
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "Evaluate (Test)"
+          }
+        },
+        "train-op": {
+          "cachingOptions": {
+            "enableCache": true
+          },
+          "componentRef": {
+            "name": "comp-train-op"
+          },
+          "dependentTasks": [
+            "data-load-op"
+          ],
+          "inputs": {
+            "artifacts": {
+              "input_dataset": {
+                "taskOutputArtifact": {
+                  "outputArtifactKey": "output_dataset",
+                  "producerTask": "data-load-op"
+                }
+              }
+            },
+            "parameters": {
+              "feature_columns": {
+                "runtimeValue": {
+                  "constant": "orders_30d,orders_90d,revenue_30d,revenue_90d,avg_order_value_90d,distinct_products_90d,distinct_categories_90d,days_since_last_order"
+                }
+              },
+              "label_column": {
+                "componentInputParameter": "label_column"
+              },
+              "max_depth": {
+                "componentInputParameter": "max_depth"
+              },
+              "model_type": {
+                "componentInputParameter": "model_type"
+              },
+              "n_estimators": {
+                "componentInputParameter": "n_estimators"
+              },
+              "random_state": {
+                "componentInputParameter": "random_state"
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "Train Model"
+          }
+        }
+      }
+    },
+    "inputDefinitions": {
+      "parameters": {
+        "input_bq_table": {
+          "defaultValue": "heum-alfred-evidence-clf-dev.featurestore_demo.train_dataset",
+          "description": "BigQuery table path for training data",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "label_column": {
+          "defaultValue": "label_churn_60d",
+          "description": "Name of the label column",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "max_depth": {
+          "defaultValue": 10.0,
+          "description": "Maximum tree depth",
+          "isOptional": true,
+          "parameterType": "NUMBER_INTEGER"
+        },
+        "model_type": {
+          "defaultValue": "random_forest",
+          "description": "Type of model (random_forest or logistic_regression)",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "n_estimators": {
+          "defaultValue": 100.0,
+          "description": "Number of trees for RandomForest",
+          "isOptional": true,
+          "parameterType": "NUMBER_INTEGER"
+        },
+        "random_state": {
+          "defaultValue": 42.0,
+          "description": "Random seed for reproducibility",
+          "isOptional": true,
+          "parameterType": "NUMBER_INTEGER"
+        },
+        "time_column": {
+          "defaultValue": "label_timestamp",
+          "description": "Name of the timestamp column for time-based split",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "train_ratio": {
+          "defaultValue": 0.7,
+          "description": "Proportion of data for training",
+          "isOptional": true,
+          "parameterType": "NUMBER_DOUBLE"
+        },
+        "valid_ratio": {
+          "defaultValue": 0.15,
+          "description": "Proportion of data for validation",
+          "isOptional": true,
+          "parameterType": "NUMBER_DOUBLE"
+        }
+      }
+    }
+  },
+  "schemaVersion": "2.1.0",
+  "sdkVersion": "kfp-2.15.2"
+}

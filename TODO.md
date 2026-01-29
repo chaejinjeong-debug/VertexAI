@@ -60,11 +60,11 @@
 
 ## Phase 8: Pipeline Wiring
 
-- [ ] `scripts/build_push.sh` - 단일 컴포넌트 build/push 스크립트
-- [ ] `src/pipelines/pipeline.py` - 파이프라인 정의
-- [ ] `src/pipelines/compile.py` - JSON 컴파일
-- [ ] `src/pipelines/run.py` - Vertex AI 제출
-- [ ] Vertex AI Pipelines 실행 성공
+- [x] `scripts/build_push.sh` - 단일 컴포넌트 build/push 스크립트
+- [x] `src/pipelines/pipeline.py` - 파이프라인 정의
+- [x] `src/pipelines/compile.py` - JSON 컴파일
+- [x] `src/pipelines/run.py` - Vertex AI 제출
+- [x] Vertex AI Pipelines 실행 성공
 
 ## Phase 9: DevEx & Guardrails
 
