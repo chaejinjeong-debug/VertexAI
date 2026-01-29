@@ -42,21 +42,21 @@
 
 ## Phase 7: Component Containerization (FR-6)
 
-- [ ] `src/components/_template/` - 컴포넌트 템플릿 생성
-  - [ ] Dockerfile
-  - [ ] src/main.py
-- [ ] `src/components/data_load/` - data_load 컴포넌트
-  - [ ] Dockerfile
-  - [ ] src/main.py (BQ → parquet split)
-  - [ ] 로컬 실행 테스트
-- [ ] `src/components/train/` - train 컴포넌트
-  - [ ] Dockerfile
-  - [ ] src/main.py (model training)
-  - [ ] 로컬 실행 테스트
-- [ ] `src/components/eval/` - eval 컴포넌트
-  - [ ] Dockerfile
-  - [ ] src/main.py (metrics 계산)
-  - [ ] 로컬 실행 테스트
+- [x] `src/components/_template/` - 컴포넌트 템플릿 생성
+  - [x] Dockerfile
+  - [x] src/main.py
+- [x] `src/components/data_load/` - data_load 컴포넌트
+  - [x] Dockerfile
+  - [x] src/main.py (BQ → parquet split)
+  - [x] 로컬 실행 테스트 (docker run --help 확인)
+- [x] `src/components/train/` - train 컴포넌트
+  - [x] Dockerfile
+  - [x] src/main.py (model training)
+  - [x] 로컬 실행 테스트 (docker run --help 확인)
+- [x] `src/components/eval/` - eval 컴포넌트
+  - [x] Dockerfile
+  - [x] src/main.py (metrics 계산)
+  - [x] 로컬 실행 테스트 (docker run --help 확인)
 
 ## Phase 8: Pipeline Wiring
 

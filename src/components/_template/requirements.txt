@@ -1,0 +1,2 @@
+# Common dependencies for pipeline components
+# Add component-specific dependencies as needed
