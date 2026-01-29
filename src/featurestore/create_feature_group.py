@@ -12,10 +12,24 @@ from google.cloud import aiplatform
 from google.cloud.aiplatform_v1 import (
     FeatureRegistryServiceClient,
     FeatureGroup,
+    Feature,
     CreateFeatureGroupRequest,
+    CreateFeatureRequest,
 )
 from google.cloud.aiplatform_v1.types import io as aiplatform_io
 from google.api_core import exceptions as gcp_exceptions
+
+# 등록할 피처 목록 (BigQuery 테이블 컬럼과 일치)
+FEATURE_COLUMNS = [
+    "orders_30d",
+    "orders_90d",
+    "revenue_30d",
+    "revenue_90d",
+    "avg_order_value_90d",
+    "distinct_products_90d",
+    "distinct_categories_90d",
+    "days_since_last_order",
+]
 
 # 로깅 설정
 logging.basicConfig(
@@ -64,6 +78,53 @@ def check_feature_group_exists(
     except Exception as e:
         logger.error(f"Feature Group 목록 조회 실패: {e}")
         return False
+
+
+def register_features(
+    client: FeatureRegistryServiceClient,
+    feature_group_path: str,
+    feature_columns: list[str],
+    skip_if_exists: bool = True
+) -> list[str]:
+    """Feature Group에 피처 등록"""
+    registered_features = []
+
+    # 기존 피처 목록 조회
+    existing_features = set()
+    try:
+        for f in client.list_features(parent=feature_group_path):
+            existing_features.add(f.name.split("/")[-1])
+    except Exception as e:
+        logger.warning(f"기존 피처 조회 실패: {e}")
+
+    for feature_name in feature_columns:
+        if skip_if_exists and feature_name in existing_features:
+            logger.info(f"  피처 이미 존재: {feature_name}")
+            registered_features.append(feature_name)
+            continue
+
+        feature = Feature(
+            description=f"Feature: {feature_name}",
+        )
+
+        request = CreateFeatureRequest(
+            parent=feature_group_path,
+            feature=feature,
+            feature_id=feature_name,
+        )
+
+        try:
+            operation = client.create_feature(request=request)
+            result = operation.result()
+            logger.info(f"  피처 등록 완료: {feature_name}")
+            registered_features.append(feature_name)
+        except gcp_exceptions.AlreadyExists:
+            logger.info(f"  피처 이미 존재: {feature_name}")
+            registered_features.append(feature_name)
+        except Exception as e:
+            logger.error(f"  피처 등록 실패 ({feature_name}): {e}")
+
+    return registered_features
 
 
 def create_feature_group(
@@ -150,7 +211,7 @@ def main():
     aiplatform.init(project=project_id, location=region)
 
     # Feature Group 생성
-    feature_group_name = create_feature_group(
+    feature_group_path = create_feature_group(
         project_id=project_id,
         region=region,
         feature_group_config=feature_group_config,
@@ -158,7 +219,19 @@ def main():
         skip_if_exists=not args.force
     )
 
-    print(f"\nFeature Group: {feature_group_name}")
+    # 피처 등록
+    logger.info("피처 등록 시작...")
+    client = get_feature_registry_client(region)
+    registered_features = register_features(
+        client=client,
+        feature_group_path=feature_group_path,
+        feature_columns=FEATURE_COLUMNS,
+        skip_if_exists=not args.force
+    )
+    logger.info(f"피처 등록 완료: {len(registered_features)}개")
+
+    print(f"\nFeature Group: {feature_group_path}")
+    print(f"등록된 피처: {registered_features}")
 
 
 if __name__ == "__main__":
