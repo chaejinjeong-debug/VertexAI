@@ -18,7 +18,7 @@ FROM
     `bigquery-public-data.thelook_ecommerce.orders`
 WHERE
     status = 'Complete'
-    AND created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {lookback_months} MONTH);
+    AND created_at >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL {lookback_months} MONTH));
 
 -- 2. 주문 상세 뷰 (매출 계산용)
 CREATE OR REPLACE VIEW `{project_id}.{target_dataset}.v_order_items` AS
@@ -37,7 +37,7 @@ INNER JOIN
     ON oi.order_id = o.order_id
 WHERE
     o.status = 'Complete'
-    AND oi.created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {lookback_months} MONTH);
+    AND oi.created_at >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL {lookback_months} MONTH));
 
 -- 3. 고객 정보 뷰
 CREATE OR REPLACE VIEW `{project_id}.{target_dataset}.v_customers` AS
