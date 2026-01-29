@@ -1,6 +1,7 @@
 -- 02_build_features.sql
 -- features_customer 스냅샷 테이블 생성
 -- 각 고객별, 날짜별 피처 스냅샷 생성 (point-in-time 학습용)
+-- Churn 예측용 피처: 30일/90일 윈도우
 
 CREATE OR REPLACE TABLE `{project_id}.{target_dataset}.features_customer` AS
 
@@ -10,17 +11,17 @@ WITH customer_order_stats AS (
         ds.snapshot_date,
         c.customer_id,
 
-        -- 최근 7일 주문 수
-        COUNTIF(
-            o.order_date > DATE_SUB(ds.snapshot_date, INTERVAL 7 DAY)
-            AND o.order_date <= ds.snapshot_date
-        ) AS orders_7d,
-
         -- 최근 30일 주문 수
         COUNTIF(
             o.order_date > DATE_SUB(ds.snapshot_date, INTERVAL 30 DAY)
             AND o.order_date <= ds.snapshot_date
         ) AS orders_30d,
+
+        -- 최근 90일 주문 수
+        COUNTIF(
+            o.order_date > DATE_SUB(ds.snapshot_date, INTERVAL 90 DAY)
+            AND o.order_date <= ds.snapshot_date
+        ) AS orders_90d,
 
         -- 최근 30일 매출
         COALESCE(SUM(
@@ -31,13 +32,30 @@ WITH customer_order_stats AS (
             END
         ), 0) AS revenue_30d,
 
-        -- 최근 30일 구매 상품 수 (고유)
+        -- 최근 90일 매출
+        COALESCE(SUM(
+            CASE WHEN oi.order_date > DATE_SUB(ds.snapshot_date, INTERVAL 90 DAY)
+                      AND oi.order_date <= ds.snapshot_date
+                 THEN oi.sale_price
+                 ELSE 0
+            END
+        ), 0) AS revenue_90d,
+
+        -- 최근 90일 구매 상품 수 (고유)
         COUNT(DISTINCT
-            CASE WHEN oi.order_date > DATE_SUB(ds.snapshot_date, INTERVAL 30 DAY)
+            CASE WHEN oi.order_date > DATE_SUB(ds.snapshot_date, INTERVAL 90 DAY)
                       AND oi.order_date <= ds.snapshot_date
                  THEN oi.product_id
             END
-        ) AS distinct_products_30d,
+        ) AS distinct_products_90d,
+
+        -- 최근 90일 구매 카테고리 수 (고유)
+        COUNT(DISTINCT
+            CASE WHEN oi.order_date > DATE_SUB(ds.snapshot_date, INTERVAL 90 DAY)
+                      AND oi.order_date <= ds.snapshot_date
+                 THEN p.category
+            END
+        ) AS distinct_categories_90d,
 
         -- 마지막 주문일
         MAX(CASE WHEN o.order_date <= ds.snapshot_date THEN o.order_date END) AS last_order_date
@@ -52,6 +70,9 @@ WITH customer_order_stats AS (
     LEFT JOIN
         `{project_id}.{target_dataset}.v_order_items` oi
         ON c.customer_id = oi.customer_id
+    LEFT JOIN
+        `bigquery-public-data.thelook_ecommerce.products` p
+        ON oi.product_id = p.id
     GROUP BY
         ds.snapshot_date, c.customer_id
 )
@@ -61,14 +82,16 @@ SELECT
     TIMESTAMP(snapshot_date) AS feature_timestamp,
 
     -- 피처들
-    CAST(orders_7d AS INT64) AS orders_7d,
     CAST(orders_30d AS INT64) AS orders_30d,
+    CAST(orders_90d AS INT64) AS orders_90d,
     ROUND(revenue_30d, 2) AS revenue_30d,
+    ROUND(revenue_90d, 2) AS revenue_90d,
     ROUND(
-        SAFE_DIVIDE(revenue_30d, NULLIF(orders_30d, 0)),
+        SAFE_DIVIDE(revenue_90d, NULLIF(orders_90d, 0)),
         2
-    ) AS avg_order_value_30d,
-    CAST(distinct_products_30d AS INT64) AS distinct_products_30d,
+    ) AS avg_order_value_90d,
+    CAST(distinct_products_90d AS INT64) AS distinct_products_90d,
+    CAST(distinct_categories_90d AS INT64) AS distinct_categories_90d,
 
     -- 마지막 주문 후 경과일 (없으면 999)
     COALESCE(

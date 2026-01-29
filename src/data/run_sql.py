@@ -59,6 +59,7 @@ def format_sql(sql: str, config: dict) -> str:
         source_dataset=config["bigquery"]["source_dataset"],
         lookback_months=config["data"]["lookback_months"],
         sample_rate=config["data"]["sample_rate"],
+        churn_days=config["data"]["churn_days"],
     )
 
 
@@ -174,8 +175,9 @@ def run_all_sql(dry_run: bool = False) -> None:
     sql_files = [
         "01_prepare_bq.sql",
         "02_build_features.sql",
-        "03_build_labels.sql",
+        "03_build_labels_churn.sql",
         "04_build_train.sql",
+        "05_sanity_checks.sql",
     ]
 
     for sql_file in sql_files:
@@ -188,7 +190,7 @@ def run_all_sql(dry_run: bool = False) -> None:
     # 결과 테이블 정보 출력
     if not dry_run:
         logger.info("\n=== 생성된 테이블 정보 ===")
-        for table_id in ["features_customer", "labels_customer", "train_dataset"]:
+        for table_id in ["features_customer", "labels_customer_churn", "train_dataset"]:
             info = get_table_info(
                 client,
                 config["gcp"]["project_id"],

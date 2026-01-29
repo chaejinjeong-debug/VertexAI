@@ -11,18 +11,19 @@
 ## Phase 2: BigQuery 데이터 가공 (FR-1)
 
 - [x] `src/data/01_prepare_bq.sql` - theLook 원본 테이블 준비/뷰 생성
-- [x] `src/data/02_build_features.sql` - features_customer 스냅샷 생성
-- [x] `src/data/03_build_labels.sql` - labels_customer 생성
+- [x] `src/data/02_build_features.sql` - features_customer 스냅샷 생성 (30일/90일 윈도우)
+- [x] `src/data/03_build_labels_churn.sql` - labels_customer_churn 생성 (60일 이탈 라벨, orders 범위 기반 date spine)
 - [x] `src/data/04_build_train.sql` - point-in-time join으로 train_dataset 생성
+- [x] `src/data/05_sanity_checks.sql` - 라벨 분포/NULL rate/기간 범위 검증
 - [x] `src/data/run_sql.py` - SQL 실행 유틸리티
 
 ## Phase 3: Feature Store 리소스 생성 (FR-2)
 
-- [ ] `src/featurestore/create_online_store.py` - Online Store 생성
-- [ ] `src/featurestore/create_feature_group.py` - Feature Group 생성
-- [ ] `src/featurestore/create_feature_view.py` - Feature View 생성
-- [ ] `src/featurestore/sync_feature_view.py` - Feature View 동기화 트리거
-- [ ] `src/featurestore/fetch_features.py` - 온라인 피처 조회
+- [x] `src/featurestore/create_online_store.py` - Online Store 생성
+- [x] `src/featurestore/create_feature_group.py` - Feature Group 생성
+- [x] `src/featurestore/create_feature_view.py` - Feature View 생성
+- [x] `src/featurestore/sync_feature_view.py` - Feature View 동기화 트리거
+- [x] `src/featurestore/fetch_features.py` - 온라인 피처 조회
 
 ## Phase 4: 모델 학습 및 등록 (FR-3)
 
@@ -45,9 +46,13 @@
 
 1. `scripts/demo.sh` 실행으로 전체 파이프라인 동작 확인
 2. `python -m src.serving.online_predict --customer_id=XXXX` 로 예측 결과 확인
+3. Sanity check 결과 확인:
+   - `uv run src/data/run_sql.py --sql-file=05_sanity_checks.sql`
+   - Churn rate이 20~80% 범위인지 확인
 
 ## 완료 기준 (Definition of Done)
 
 - [ ] 새 프로젝트/새 계정에서 README대로 실행 시 재현 가능
 - [ ] Feature fetch + predict가 최소 10건 고객에 대해 정상 동작
+- [ ] 라벨 positive rate가 0% 또는 100%가 아니며, sanity check 통과
 - [ ] 실행 실패 시 "어떤 단계에서 무엇이 필요한지" 로그로 출력
