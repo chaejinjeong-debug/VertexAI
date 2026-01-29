@@ -85,7 +85,11 @@ def load_from_bigquery(bq_table: str) -> pd.DataFrame:
     """Load data from BigQuery table."""
     logger.info(f"Loading data from BigQuery: {bq_table}")
 
-    client = bigquery.Client()
+    # Extract project ID from table path (project.dataset.table)
+    project_id = bq_table.split(".")[0]
+    logger.info(f"Using project: {project_id}")
+
+    client = bigquery.Client(project=project_id)
     query = f"SELECT * FROM `{bq_table}`"
 
     df = client.query(query).to_dataframe()
