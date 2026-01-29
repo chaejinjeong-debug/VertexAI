@@ -1,10 +1,10 @@
-# 모델 학습 설정
+# 모델 학습 설정 (Customer Churn Prediction)
 
 # 모델 정보
 model:
-  name: "repurchase_predictor"
-  display_name: "Customer Repurchase Predictor"
-  description: "14일 내 재구매 확률 예측 모델"
+  name: "churn_predictor"
+  display_name: "Customer Churn Predictor"
+  description: "60일 내 이탈 확률 예측 모델"
 
   # 모델 타입 (scikit-learn)
   framework: "sklearn"
@@ -12,17 +12,19 @@ model:
 
 # 학습 파라미터
 training:
-  # 타겟 컬럼
-  target_column: "label_repurchase_14d"
+  # 타겟 컬럼 (env.yaml의 churn_days와 일치해야 함)
+  target_column: "label_churn_60d"
 
   # 피처 컬럼 (Feature Store와 일치)
   feature_columns:
-    - "orders_7d"
     - "orders_30d"
+    - "orders_90d"
     - "revenue_30d"
-    - "avg_order_value_30d"
+    - "revenue_90d"
+    - "avg_order_value_90d"
+    - "distinct_products_90d"
+    - "distinct_categories_90d"
     - "days_since_last_order"
-    - "distinct_products_30d"
 
   # Train/Test 분할
   test_size: 0.2
@@ -37,8 +39,8 @@ training:
 
 # Vertex AI Endpoint 설정
 endpoint:
-  name: "repurchase-endpoint"
-  display_name: "Repurchase Prediction Endpoint"
+  name: "churn-prediction-endpoint"
+  display_name: "Churn Prediction Endpoint"
 
   # 배포 리소스 설정
   deployed_model:
@@ -50,7 +52,8 @@ endpoint:
 evaluation:
   metrics:
     - "accuracy"
-    - "auc"
+    - "roc_auc"
+    - "pr_auc"
     - "precision"
     - "recall"
     - "f1"

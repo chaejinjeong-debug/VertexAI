@@ -27,18 +27,18 @@
 
 ## Phase 4: 모델 학습 및 등록 (FR-3)
 
-- [ ] `src/training/train.py` - 학습 스크립트 (scikit-learn)
-- [ ] `src/training/upload_model.py` - Vertex AI Model Registry 업로드
-- [ ] `src/training/deploy_endpoint.py` - Endpoint 생성 및 배포
+- [x] `src/training/train.py` - 학습 스크립트 (scikit-learn)
+- [x] `src/training/upload_model.py` - Vertex AI Model Registry 업로드
+- [x] `src/training/deploy_endpoint.py` - Endpoint 생성 및 배포
 
 ## Phase 5: 온라인 추론 (FR-4)
 
-- [ ] `src/serving/online_predict.py` - Feature fetch + Predict 통합
+- [x] `src/serving/online_predict.py` - Feature fetch + Predict 통합
 
 ## Phase 6: 자동화 및 문서화 (FR-5)
 
-- [ ] `scripts/demo.sh` - End-to-End 데모 실행 스크립트
-- [ ] `README.md` 업데이트 - 설치, 실행, 권한 가이드
+- [x] `scripts/demo.sh` - End-to-End 데모 실행 스크립트
+- [x] `README.md` 업데이트 - 설치, 실행, 권한 가이드
 
 ---
 
@@ -52,7 +52,7 @@
 
 ## 완료 기준 (Definition of Done)
 
-- [ ] 새 프로젝트/새 계정에서 README대로 실행 시 재현 가능
-- [ ] Feature fetch + predict가 최소 10건 고객에 대해 정상 동작
-- [ ] 라벨 positive rate가 0% 또는 100%가 아니며, sanity check 통과
-- [ ] 실행 실패 시 "어떤 단계에서 무엇이 필요한지" 로그로 출력
+- [x] 새 프로젝트/새 계정에서 README대로 실행 시 재현 가능
+- [x] Feature fetch + predict가 최소 10건 고객에 대해 정상 동작
+- [x] 라벨 positive rate가 0% 또는 100%가 아니며, sanity check 통과
+- [x] 실행 실패 시 "어떤 단계에서 무엇이 필요한지" 로그로 출력

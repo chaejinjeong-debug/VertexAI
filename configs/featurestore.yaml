@@ -13,7 +13,7 @@ online_store:
 # Feature Group 설정
 feature_group:
   name: "customer_features"
-  description: "theLook eCommerce 고객 피처"
+  description: "theLook eCommerce 고객 피처 (Churn Prediction)"
   # BigQuery 소스 설정
   big_query_source:
     # env.yaml의 target_dataset.features_customer 테이블 참조
@@ -23,7 +23,7 @@ feature_group:
 # Feature View 설정
 feature_view:
   name: "customer_feature_view"
-  description: "고객 피처 온라인 서빙 뷰"
+  description: "고객 피처 온라인 서빙 뷰 (Churn Prediction)"
 
   # 동기화 설정
   sync_config:
@@ -31,11 +31,13 @@ feature_view:
     # 매일 새벽 2시 실행
     cron: "0 2 * * *"
 
-  # 피처 목록
+  # 피처 목록 (Churn Prediction용)
   features:
-    - "orders_7d"
     - "orders_30d"
+    - "orders_90d"
     - "revenue_30d"
-    - "avg_order_value_30d"
+    - "revenue_90d"
+    - "avg_order_value_90d"
+    - "distinct_products_90d"
+    - "distinct_categories_90d"
     - "days_since_last_order"
-    - "distinct_products_30d"
