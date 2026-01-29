@@ -40,6 +40,43 @@
 - [x] `scripts/demo.sh` - End-to-End 데모 실행 스크립트
 - [x] `README.md` 업데이트 - 설치, 실행, 권한 가이드
 
+## Phase 7: Component Containerization (FR-6)
+
+- [ ] `src/components/_template/` - 컴포넌트 템플릿 생성
+  - [ ] Dockerfile
+  - [ ] src/main.py
+- [ ] `src/components/data_load/` - data_load 컴포넌트
+  - [ ] Dockerfile
+  - [ ] src/main.py (BQ → parquet split)
+  - [ ] 로컬 실행 테스트
+- [ ] `src/components/train/` - train 컴포넌트
+  - [ ] Dockerfile
+  - [ ] src/main.py (model training)
+  - [ ] 로컬 실행 테스트
+- [ ] `src/components/eval/` - eval 컴포넌트
+  - [ ] Dockerfile
+  - [ ] src/main.py (metrics 계산)
+  - [ ] 로컬 실행 테스트
+
+## Phase 8: Pipeline Wiring
+
+- [ ] `scripts/build_push.sh` - 단일 컴포넌트 build/push 스크립트
+- [ ] `src/pipelines/pipeline.py` - 파이프라인 정의
+- [ ] `src/pipelines/compile.py` - JSON 컴파일
+- [ ] `src/pipelines/run.py` - Vertex AI 제출
+- [ ] Vertex AI Pipelines 실행 성공
+
+## Phase 9: DevEx & Guardrails
+
+- [ ] `scripts/build_push_all.sh` - 전체 컴포넌트 빌드 스크립트
+- [ ] `scripts/smoke_test.sh` - 로컬 검증 스크립트
+- [ ] CI 설정 - 변경분만 build/push
+
+## Phase 10 (옵션): Advanced
+
+- [ ] CustomJob 옵션화
+- [ ] Image digest pinning
+
 ---
 
 ## 검증 방법
