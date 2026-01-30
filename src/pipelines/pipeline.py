@@ -9,6 +9,7 @@ Components:
 2. train: Model training
 3. eval: Model evaluation (valid set)
 4. eval_test: Model evaluation (test set)
+5. model_upload: Model Registry 업로드 + Experiments 로깅
 """
 
 from kfp import dsl
@@ -119,6 +120,34 @@ def eval_op(
     )
 
 
+@dsl.container_component
+def model_upload_op(
+    input_model: Input[Artifact],
+    input_metrics: Input[Artifact],
+    project_id: str,
+    region: str,
+    experiment_name: str,
+    model_display_name: str,
+    staging_bucket: str,
+    output_model_resource: Output[Artifact],
+):
+    """Upload model to Model Registry and log to Experiments."""
+    return dsl.ContainerSpec(
+        image=get_image_uri("model_upload"),
+        command=["python", "/app/src/main.py"],
+        args=[
+            "--input_model_dir", input_model.path,
+            "--input_metrics_path", input_metrics.path,
+            "--project_id", project_id,
+            "--region", region,
+            "--experiment_name", experiment_name,
+            "--model_display_name", model_display_name,
+            "--staging_bucket", staging_bucket,
+            "--output_model_resource", output_model_resource.path,
+        ],
+    )
+
+
 @dsl.pipeline(
     name="customer-churn-training-pipeline",
     description="Customer Churn 예측 모델 학습 파이프라인 (Container-based)",
@@ -133,6 +162,12 @@ def churn_training_pipeline(
     n_estimators: int = 100,
     max_depth: int = 10,
     random_state: int = 42,
+    # Model Registry & Experiments settings
+    project_id: str = DEFAULT_PROJECT_ID,
+    region: str = DEFAULT_REGION,
+    experiment_name: str = "churn-experiment",
+    model_display_name: str = "churn-model",
+    staging_bucket: str = "heum-alfred-evidence-clf-dev-vertex-staging",
 ) -> None:
     """
     End-to-end training pipeline for customer churn prediction.
@@ -147,6 +182,11 @@ def churn_training_pipeline(
         n_estimators: Number of trees for RandomForest
         max_depth: Maximum tree depth
         random_state: Random seed for reproducibility
+        project_id: GCP project ID
+        region: GCP region
+        experiment_name: Vertex AI Experiment name for tracking
+        model_display_name: Display name for Model Registry
+        staging_bucket: GCS bucket for model artifacts
     """
     feature_columns_str = ",".join(FEATURE_COLUMNS)
 
@@ -192,6 +232,18 @@ def churn_training_pipeline(
     )
     eval_test_task.set_display_name("Evaluate (Test)")
 
+    # Step 5: Upload model to Model Registry and log to Experiments
+    model_upload_task = model_upload_op(
+        input_model=train_task.outputs["output_model"],
+        input_metrics=eval_valid_task.outputs["output_metrics"],
+        project_id=project_id,
+        region=region,
+        experiment_name=experiment_name,
+        model_display_name=model_display_name,
+        staging_bucket=staging_bucket,
+    )
+    model_upload_task.set_display_name("Model Upload")
+
 
 if __name__ == "__main__":
     # For testing: print pipeline info
@@ -200,3 +252,4 @@ if __name__ == "__main__":
     print(f"Data Load Image: {get_image_uri('data_load')}")
     print(f"Train Image: {get_image_uri('train')}")
     print(f"Eval Image: {get_image_uri('eval')}")
+    print(f"Model Upload Image: {get_image_uri('model_upload')}")

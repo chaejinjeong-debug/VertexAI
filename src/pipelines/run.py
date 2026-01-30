@@ -103,6 +103,26 @@ def parse_args() -> argparse.Namespace:
         help="Maximum tree depth"
     )
 
+    # Model Registry & Experiments settings
+    parser.add_argument(
+        "--experiment-name",
+        type=str,
+        default="churn-experiment",
+        help="Vertex AI Experiment name for tracking"
+    )
+    parser.add_argument(
+        "--model-display-name",
+        type=str,
+        default="churn-model",
+        help="Display name for Model Registry"
+    )
+    parser.add_argument(
+        "--staging-bucket",
+        type=str,
+        default=f"{config['gcp']['project_id']}-vertex-staging",
+        help="GCS bucket for model artifacts"
+    )
+
     # Execution options
     parser.add_argument(
         "--display-name",
@@ -168,6 +188,12 @@ def run_pipeline(args: argparse.Namespace) -> str:
         "n_estimators": args.n_estimators,
         "max_depth": args.max_depth,
         "random_state": 42,
+        # Model Registry & Experiments
+        "project_id": args.project_id,
+        "region": args.region,
+        "experiment_name": args.experiment_name,
+        "model_display_name": args.model_display_name,
+        "staging_bucket": args.staging_bucket,
     }
 
     logger.info("Pipeline parameters:")

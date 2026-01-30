@@ -72,7 +72,22 @@
 - [ ] `scripts/smoke_test.sh` - 로컬 검증 스크립트
 - [ ] CI 설정 - 변경분만 build/push
 
-## Phase 10 (옵션): Advanced
+## Phase 10: Experiments & Model Registry 통합
+
+- [x] `src/components/model_upload/` - model_upload 컴포넌트
+  - [x] Dockerfile
+  - [x] requirements.txt
+  - [x] src/main.py (GCS 업로드 + Registry 등록 + Experiments 로깅)
+  - [x] 로컬 실행 테스트 (docker run --help 확인)
+- [x] `src/pipelines/pipeline.py` - model_upload_op 추가
+- [x] `src/pipelines/run.py` - experiment 파라미터 추가
+- [ ] 이미지 빌드/푸시 (`./scripts/build_push.sh model_upload`)
+- [ ] 파이프라인 재컴파일 (`uv run src/pipelines/compile.py`)
+- [ ] Vertex AI Pipelines 실행 성공
+- [ ] Experiments 콘솔에서 메트릭 확인
+- [ ] Model Registry에 모델 등록 확인
+
+## Phase 11 (옵션): Advanced
 
 - [ ] CustomJob 옵션화
 - [ ] Image digest pinning
