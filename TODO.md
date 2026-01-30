@@ -86,6 +86,7 @@
 - [x] Vertex AI Pipelines 실행 성공
 - [x] Experiments 콘솔에서 메트릭 확인 (ROC-AUC: 0.9935, PR-AUC: 0.9997)
 - [x] Model Registry에 모델 등록 확인 (churn-model-20260130-004452)
+- [x] model_upload이 eval_test 완료 후 실행되도록 DAG 수정 (valid 연결 제거, test만 사용)
 
 ## Phase 11 (옵션): Advanced
 

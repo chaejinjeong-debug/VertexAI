@@ -7,9 +7,8 @@ src/components/ 디렉토리의 컨테이너 이미지를 사용합니다.
 Components:
 1. data_load: BigQuery → Parquet (train/valid/test split)
 2. train: Model training (CustomTrainingJob - Vertex AI 학습 섹션에 표시)
-3. eval: Model evaluation (valid set)
-4. eval_test: Model evaluation (test set)
-5. model_upload: Model Registry 업로드 + Experiments 로깅
+3. eval: Model evaluation (test set)
+4. model_upload: Model Registry 업로드 + Experiments 로깅
 """
 
 from kfp import dsl
@@ -137,7 +136,7 @@ def eval_op(
 @dsl.container_component
 def model_upload_op(
     input_model: Input[Artifact],
-    input_metrics: Input[Artifact],
+    input_test_metrics: Input[Artifact],
     project_id: str,
     region: str,
     experiment_name: str,
@@ -147,13 +146,14 @@ def model_upload_op(
     """Upload model to Model Registry and log to Experiments.
 
     Uses pipeline artifact path directly (no separate GCS upload needed).
+    Waits for test evaluation to complete before uploading.
     """
     return dsl.ContainerSpec(
         image=get_image_uri("model_upload"),
         command=["python", "/app/src/main.py"],
         args=[
             "--input_model_dir", input_model.path,
-            "--input_metrics_path", input_metrics.path,
+            "--input_metrics_path", input_test_metrics.path,
             "--project_id", project_id,
             "--region", region,
             "--experiment_name", experiment_name,
@@ -227,17 +227,7 @@ def churn_training_pipeline(
     )
     train_task.set_display_name("Train Model (CustomJob)")
 
-    # Step 3: Evaluate on validation set
-    eval_valid_task = eval_op(
-        input_model=train_task.outputs["output_model"],
-        input_dataset=data_load_task.outputs["output_dataset"],
-        feature_columns=feature_columns_str,
-        label_column=label_column,
-        eval_split="valid",
-    )
-    eval_valid_task.set_display_name("Evaluate (Valid)")
-
-    # Step 4: Evaluate on test set
+    # Step 3: Evaluate on test set
     eval_test_task = eval_op(
         input_model=train_task.outputs["output_model"],
         input_dataset=data_load_task.outputs["output_dataset"],
@@ -247,10 +237,11 @@ def churn_training_pipeline(
     )
     eval_test_task.set_display_name("Evaluate (Test)")
 
-    # Step 5: Upload model to Model Registry and log to Experiments
+    # Step 4: Upload model to Model Registry and log to Experiments
+    # Note: Waits for eval_test_task to complete before uploading
     model_upload_task = model_upload_op(
         input_model=train_task.outputs["output_model"],
-        input_metrics=eval_valid_task.outputs["output_metrics"],
+        input_test_metrics=eval_test_task.outputs["output_metrics"],
         project_id=project_id,
         region=region,
         experiment_name=experiment_name,

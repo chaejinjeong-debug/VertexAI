@@ -72,57 +72,17 @@
         }
       }
     },
-    "comp-eval-op-2": {
-      "executorLabel": "exec-eval-op-2",
-      "inputDefinitions": {
-        "artifacts": {
-          "input_dataset": {
-            "artifactType": {
-              "schemaTitle": "system.Artifact",
-              "schemaVersion": "0.0.1"
-            }
-          },
-          "input_model": {
-            "artifactType": {
-              "schemaTitle": "system.Artifact",
-              "schemaVersion": "0.0.1"
-            }
-          }
-        },
-        "parameters": {
-          "eval_split": {
-            "parameterType": "STRING"
-          },
-          "feature_columns": {
-            "parameterType": "STRING"
-          },
-          "label_column": {
-            "parameterType": "STRING"
-          }
-        }
-      },
-      "outputDefinitions": {
-        "artifacts": {
-          "output_metrics": {
-            "artifactType": {
-              "schemaTitle": "system.Artifact",
-              "schemaVersion": "0.0.1"
-            }
-          }
-        }
-      }
-    },
     "comp-model-upload-op": {
       "executorLabel": "exec-model-upload-op",
       "inputDefinitions": {
         "artifacts": {
-          "input_metrics": {
+          "input_model": {
             "artifactType": {
               "schemaTitle": "system.Artifact",
               "schemaVersion": "0.0.1"
             }
           },
-          "input_model": {
+          "input_test_metrics": {
             "artifactType": {
               "schemaTitle": "system.Artifact",
               "schemaVersion": "0.0.1"
@@ -376,36 +336,13 @@
           "image": "asia-northeast3-docker.pkg.dev/heum-alfred-evidence-clf-dev/vertex-ai-pipelines/component-eval:latest"
         }
       },
-      "exec-eval-op-2": {
-        "container": {
-          "args": [
-            "--input_model_dir",
-            "{{$.inputs.artifacts['input_model'].path}}",
-            "--input_dataset_dir",
-            "{{$.inputs.artifacts['input_dataset'].path}}",
-            "--output_metrics_path",
-            "{{$.outputs.artifacts['output_metrics'].path}}",
-            "--feature_columns",
-            "{{$.inputs.parameters['feature_columns']}}",
-            "--label_column",
-            "{{$.inputs.parameters['label_column']}}",
-            "--eval_split",
-            "{{$.inputs.parameters['eval_split']}}"
-          ],
-          "command": [
-            "python",
-            "/app/src/main.py"
-          ],
-          "image": "asia-northeast3-docker.pkg.dev/heum-alfred-evidence-clf-dev/vertex-ai-pipelines/component-eval:latest"
-        }
-      },
       "exec-model-upload-op": {
         "container": {
           "args": [
             "--input_model_dir",
             "{{$.inputs.artifacts['input_model'].path}}",
             "--input_metrics_path",
-            "{{$.inputs.artifacts['input_metrics'].path}}",
+            "{{$.inputs.artifacts['input_test_metrics'].path}}",
             "--project_id",
             "{{$.inputs.parameters['project_id']}}",
             "--region",
@@ -515,52 +452,6 @@
             "parameters": {
               "eval_split": {
                 "runtimeValue": {
-                  "constant": "valid"
-                }
-              },
-              "feature_columns": {
-                "runtimeValue": {
-                  "constant": "orders_30d,orders_90d,revenue_30d,revenue_90d,avg_order_value_90d,distinct_products_90d,distinct_categories_90d,days_since_last_order"
-                }
-              },
-              "label_column": {
-                "componentInputParameter": "label_column"
-              }
-            }
-          },
-          "taskInfo": {
-            "name": "Evaluate (Valid)"
-          }
-        },
-        "eval-op-2": {
-          "cachingOptions": {
-            "enableCache": true
-          },
-          "componentRef": {
-            "name": "comp-eval-op-2"
-          },
-          "dependentTasks": [
-            "data-load-op",
-            "train-op"
-          ],
-          "inputs": {
-            "artifacts": {
-              "input_dataset": {
-                "taskOutputArtifact": {
-                  "outputArtifactKey": "output_dataset",
-                  "producerTask": "data-load-op"
-                }
-              },
-              "input_model": {
-                "taskOutputArtifact": {
-                  "outputArtifactKey": "output_model",
-                  "producerTask": "train-op"
-                }
-              }
-            },
-            "parameters": {
-              "eval_split": {
-                "runtimeValue": {
                   "constant": "test"
                 }
               },
@@ -591,16 +482,16 @@
           ],
           "inputs": {
             "artifacts": {
-              "input_metrics": {
-                "taskOutputArtifact": {
-                  "outputArtifactKey": "output_metrics",
-                  "producerTask": "eval-op"
-                }
-              },
               "input_model": {
                 "taskOutputArtifact": {
                   "outputArtifactKey": "output_model",
                   "producerTask": "train-op"
+                }
+              },
+              "input_test_metrics": {
+                "taskOutputArtifact": {
+                  "outputArtifactKey": "output_metrics",
+                  "producerTask": "eval-op"
                 }
               }
             },

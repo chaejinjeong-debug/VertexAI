@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
         "--input_metrics_path",
         type=str,
         required=True,
-        help="Input metrics JSON file path"
+        help="Input test metrics JSON file path"
     )
 
     # GCP settings
@@ -201,14 +201,19 @@ def upload_to_model_registry(
         "created_by": "vertex-ai-pipeline",
     }
 
-    # Prepare description
+    # Prepare description with test metrics
     description_parts = [
-        f"Customer Churn Prediction Model",
+        "Customer Churn Prediction Model",
         f"Model Type: {model_meta.get('model_type', 'unknown')}",
-        f"ROC-AUC: {metrics.get('roc_auc', 'N/A'):.4f}" if isinstance(metrics.get('roc_auc'), float) else "",
-        f"PR-AUC: {metrics.get('pr_auc', 'N/A'):.4f}" if isinstance(metrics.get('pr_auc'), float) else "",
     ]
-    description = "\n".join([p for p in description_parts if p])
+    if isinstance(metrics.get('roc_auc'), float):
+        description_parts.append(f"ROC-AUC: {metrics['roc_auc']:.4f}")
+    if isinstance(metrics.get('pr_auc'), float):
+        description_parts.append(f"PR-AUC: {metrics['pr_auc']:.4f}")
+    if isinstance(metrics.get('accuracy'), float):
+        description_parts.append(f"Accuracy: {metrics['accuracy']:.4f}")
+
+    description = "\n".join(description_parts)
 
     model = aiplatform.Model.upload(
         display_name=model_display_name,
@@ -256,7 +261,7 @@ def main() -> None:
     model_meta = load_model_meta(model_dir)
 
     logger.info(f"Model type: {model_meta.get('model_type', 'unknown')}")
-    logger.info(f"Metrics: ROC-AUC={metrics.get('roc_auc', 'N/A'):.4f}, PR-AUC={metrics.get('pr_auc', 'N/A'):.4f}")
+    logger.info(f"Test Metrics: ROC-AUC={metrics.get('roc_auc', 'N/A'):.4f}, PR-AUC={metrics.get('pr_auc', 'N/A'):.4f}")
 
     # Generate run name
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
