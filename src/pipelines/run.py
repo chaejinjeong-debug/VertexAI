@@ -116,13 +116,6 @@ def parse_args() -> argparse.Namespace:
         default="churn-model",
         help="Display name for Model Registry"
     )
-    parser.add_argument(
-        "--staging-bucket",
-        type=str,
-        default=f"{config['gcp']['project_id']}-vertex-staging",
-        help="GCS bucket for model artifacts"
-    )
-
     # Execution options
     parser.add_argument(
         "--display-name",
@@ -193,7 +186,6 @@ def run_pipeline(args: argparse.Namespace) -> str:
         "region": args.region,
         "experiment_name": args.experiment_name,
         "model_display_name": args.model_display_name,
-        "staging_bucket": args.staging_bucket,
     }
 
     logger.info("Pipeline parameters:")

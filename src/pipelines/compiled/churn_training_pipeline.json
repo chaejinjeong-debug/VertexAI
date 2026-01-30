@@ -112,6 +112,49 @@
         }
       }
     },
+    "comp-model-upload-op": {
+      "executorLabel": "exec-model-upload-op",
+      "inputDefinitions": {
+        "artifacts": {
+          "input_metrics": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          },
+          "input_model": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        },
+        "parameters": {
+          "experiment_name": {
+            "parameterType": "STRING"
+          },
+          "model_display_name": {
+            "parameterType": "STRING"
+          },
+          "project_id": {
+            "parameterType": "STRING"
+          },
+          "region": {
+            "parameterType": "STRING"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "artifacts": {
+          "output_model_resource": {
+            "artifactType": {
+              "schemaTitle": "system.Artifact",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        }
+      }
+    },
     "comp-train-op": {
       "executorLabel": "exec-train-op",
       "inputDefinitions": {
@@ -225,6 +268,31 @@
             "/app/src/main.py"
           ],
           "image": "asia-northeast3-docker.pkg.dev/heum-alfred-evidence-clf-dev/vertex-ai-pipelines/component-eval:latest"
+        }
+      },
+      "exec-model-upload-op": {
+        "container": {
+          "args": [
+            "--input_model_dir",
+            "{{$.inputs.artifacts['input_model'].path}}",
+            "--input_metrics_path",
+            "{{$.inputs.artifacts['input_metrics'].path}}",
+            "--project_id",
+            "{{$.inputs.parameters['project_id']}}",
+            "--region",
+            "{{$.inputs.parameters['region']}}",
+            "--experiment_name",
+            "{{$.inputs.parameters['experiment_name']}}",
+            "--model_display_name",
+            "{{$.inputs.parameters['model_display_name']}}",
+            "--output_model_resource",
+            "{{$.outputs.artifacts['output_model_resource'].path}}"
+          ],
+          "command": [
+            "python",
+            "/app/src/main.py"
+          ],
+          "image": "asia-northeast3-docker.pkg.dev/heum-alfred-evidence-clf-dev/vertex-ai-pipelines/component-model_upload:latest"
         }
       },
       "exec-train-op": {
@@ -385,6 +453,51 @@
             "name": "Evaluate (Test)"
           }
         },
+        "model-upload-op": {
+          "cachingOptions": {
+            "enableCache": true
+          },
+          "componentRef": {
+            "name": "comp-model-upload-op"
+          },
+          "dependentTasks": [
+            "eval-op",
+            "train-op"
+          ],
+          "inputs": {
+            "artifacts": {
+              "input_metrics": {
+                "taskOutputArtifact": {
+                  "outputArtifactKey": "output_metrics",
+                  "producerTask": "eval-op"
+                }
+              },
+              "input_model": {
+                "taskOutputArtifact": {
+                  "outputArtifactKey": "output_model",
+                  "producerTask": "train-op"
+                }
+              }
+            },
+            "parameters": {
+              "experiment_name": {
+                "componentInputParameter": "experiment_name"
+              },
+              "model_display_name": {
+                "componentInputParameter": "model_display_name"
+              },
+              "project_id": {
+                "componentInputParameter": "project_id"
+              },
+              "region": {
+                "componentInputParameter": "region"
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "Model Upload"
+          }
+        },
         "train-op": {
           "cachingOptions": {
             "enableCache": true
@@ -435,6 +548,12 @@
     },
     "inputDefinitions": {
       "parameters": {
+        "experiment_name": {
+          "defaultValue": "churn-experiment",
+          "description": "Vertex AI Experiment name for tracking",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
         "input_bq_table": {
           "defaultValue": "heum-alfred-evidence-clf-dev.featurestore_demo.train_dataset",
           "description": "BigQuery table path for training data",
@@ -453,6 +572,12 @@
           "isOptional": true,
           "parameterType": "NUMBER_INTEGER"
         },
+        "model_display_name": {
+          "defaultValue": "churn-model",
+          "description": "Display name for Model Registry",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
         "model_type": {
           "defaultValue": "random_forest",
           "description": "Type of model (random_forest or logistic_regression)",
@@ -465,11 +590,23 @@
           "isOptional": true,
           "parameterType": "NUMBER_INTEGER"
         },
+        "project_id": {
+          "defaultValue": "heum-alfred-evidence-clf-dev",
+          "description": "GCP project ID",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
         "random_state": {
           "defaultValue": 42.0,
           "description": "Random seed for reproducibility",
           "isOptional": true,
           "parameterType": "NUMBER_INTEGER"
+        },
+        "region": {
+          "defaultValue": "asia-northeast3",
+          "description": "GCP region",
+          "isOptional": true,
+          "parameterType": "STRING"
         },
         "time_column": {
           "defaultValue": "label_timestamp",

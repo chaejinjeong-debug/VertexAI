@@ -1,13 +1,14 @@
 """
 Model Upload Component
 
-모델을 Model Registry에 업로드하고 Vertex AI Experiments에 메트릭을 로깅합니다.
+파이프라인 아티팩트에서 직접 Model Registry에 등록하고 Vertex AI Experiments에 메트릭을 로깅합니다.
+별도의 GCS 업로드 없이 파이프라인의 아티팩트 경로를 그대로 사용합니다.
 
 Usage:
     python main.py --help
     python main.py \
-        --input_model_dir /path/to/model \
-        --input_metrics_path /path/to/metrics.json \
+        --input_model_dir /gcs/bucket/path/to/model \
+        --input_metrics_path /gcs/bucket/path/to/metrics.json \
         --project_id my-project \
         --region asia-northeast3 \
         --experiment_name churn-experiment \
@@ -18,13 +19,11 @@ Usage:
 import argparse
 import json
 import logging
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
 
 from google.cloud import aiplatform
-from google.cloud import storage
 
 # Configure logging
 logging.basicConfig(
@@ -67,12 +66,6 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="asia-northeast3",
         help="GCP region"
-    )
-    parser.add_argument(
-        "--staging_bucket",
-        type=str,
-        default=None,
-        help="GCS bucket for model artifacts (default: {project_id}-vertex-staging)"
     )
 
     # Model Registry settings
@@ -135,29 +128,28 @@ def load_model_meta(model_dir: Path) -> dict:
     return {}
 
 
-def upload_model_to_gcs(
-    model_dir: Path,
-    bucket_name: str,
-    prefix: str
-) -> str:
-    """Upload model artifacts to GCS."""
-    client = storage.Client()
-    bucket = client.bucket(bucket_name)
+def convert_gcs_path(local_path: str) -> str:
+    """Convert /gcs/bucket/path to gs://bucket/path format.
 
-    artifact_uri = f"gs://{bucket_name}/{prefix}"
-    logger.info(f"Uploading model to {artifact_uri}")
-
-    for file_path in model_dir.iterdir():
-        if file_path.is_file():
-            blob_name = f"{prefix}/{file_path.name}"
-            blob = bucket.blob(blob_name)
-            blob.upload_from_filename(str(file_path))
-            logger.info(f"  Uploaded {file_path.name}")
-
-    return artifact_uri
+    Vertex AI Pipelines mounts GCS as /gcs/bucket/path.
+    Model Registry requires gs://bucket/path format.
+    """
+    if local_path.startswith("/gcs/"):
+        # /gcs/bucket/path -> gs://bucket/path
+        return "gs://" + local_path[5:]
+    elif local_path.startswith("gs://"):
+        # Already in correct format
+        return local_path
+    else:
+        raise ValueError(
+            f"Invalid path format: {local_path}. "
+            "Expected /gcs/bucket/path or gs://bucket/path"
+        )
 
 
 def log_to_experiments(
+    project_id: str,
+    region: str,
     experiment_name: str,
     run_name: str,
     metrics: dict,
@@ -166,14 +158,15 @@ def log_to_experiments(
     """Log metrics and parameters to Vertex AI Experiments."""
     logger.info(f"Logging to experiment: {experiment_name}, run: {run_name}")
 
-    # Get or create experiment
-    experiment = aiplatform.Experiment.get_or_create(
-        experiment_name=experiment_name,
-        description="Customer Churn Prediction Experiment"
+    # Set experiment in the context (re-init with experiment)
+    aiplatform.init(
+        project=project_id,
+        location=region,
+        experiment=experiment_name,
     )
 
     # Start a run and log
-    with aiplatform.start_run(run=run_name, experiment=experiment_name) as run:
+    with aiplatform.start_run(run=run_name) as run:
         # Log metrics (filter to numeric values only)
         numeric_metrics = {
             k: v for k, v in metrics.items()
@@ -270,14 +263,11 @@ def main() -> None:
     run_name = args.run_name or f"run-{timestamp}"
     model_display_name = f"{args.model_display_name}-{timestamp}"
 
-    # Determine staging bucket
-    staging_bucket = args.staging_bucket or f"{args.project_id}-vertex-staging"
-    model_prefix = f"models/{args.model_display_name}/{run_name}"
-
-    # Step 1: Upload model to GCS
+    # Step 1: Convert path to GCS URI (no re-upload needed)
     logger.info("-" * 50)
-    logger.info("Step 1: Uploading model to GCS")
-    artifact_uri = upload_model_to_gcs(model_dir, staging_bucket, model_prefix)
+    logger.info("Step 1: Converting artifact path to GCS URI")
+    artifact_uri = convert_gcs_path(args.input_model_dir)
+    logger.info(f"Artifact URI: {artifact_uri}")
 
     # Step 2: Log to Experiments
     logger.info("-" * 50)
@@ -289,6 +279,8 @@ def main() -> None:
         "feature_count": model_meta.get("feature_count", "N/A"),
     }
     log_to_experiments(
+        project_id=args.project_id,
+        region=args.region,
         experiment_name=args.experiment_name,
         run_name=run_name,
         metrics=metrics,

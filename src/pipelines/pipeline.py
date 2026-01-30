@@ -128,10 +128,12 @@ def model_upload_op(
     region: str,
     experiment_name: str,
     model_display_name: str,
-    staging_bucket: str,
     output_model_resource: Output[Artifact],
 ):
-    """Upload model to Model Registry and log to Experiments."""
+    """Upload model to Model Registry and log to Experiments.
+
+    Uses pipeline artifact path directly (no separate GCS upload needed).
+    """
     return dsl.ContainerSpec(
         image=get_image_uri("model_upload"),
         command=["python", "/app/src/main.py"],
@@ -142,7 +144,6 @@ def model_upload_op(
             "--region", region,
             "--experiment_name", experiment_name,
             "--model_display_name", model_display_name,
-            "--staging_bucket", staging_bucket,
             "--output_model_resource", output_model_resource.path,
         ],
     )
@@ -167,7 +168,6 @@ def churn_training_pipeline(
     region: str = DEFAULT_REGION,
     experiment_name: str = "churn-experiment",
     model_display_name: str = "churn-model",
-    staging_bucket: str = "heum-alfred-evidence-clf-dev-vertex-staging",
 ) -> None:
     """
     End-to-end training pipeline for customer churn prediction.
@@ -186,7 +186,6 @@ def churn_training_pipeline(
         region: GCP region
         experiment_name: Vertex AI Experiment name for tracking
         model_display_name: Display name for Model Registry
-        staging_bucket: GCS bucket for model artifacts
     """
     feature_columns_str = ",".join(FEATURE_COLUMNS)
 
@@ -240,7 +239,6 @@ def churn_training_pipeline(
         region=region,
         experiment_name=experiment_name,
         model_display_name=model_display_name,
-        staging_bucket=staging_bucket,
     )
     model_upload_task.set_display_name("Model Upload")
 
