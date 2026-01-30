@@ -89,7 +89,7 @@
 
 ## Phase 11 (옵션): Advanced
 
-- [ ] CustomJob 옵션화
+- [x] CustomJob 옵션화 (train 컴포넌트를 `create_custom_training_job_from_component`로 래핑)
 - [ ] Image digest pinning
 
 ---

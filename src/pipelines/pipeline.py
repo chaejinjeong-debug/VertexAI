@@ -6,7 +6,7 @@ src/components/ 디렉토리의 컨테이너 이미지를 사용합니다.
 
 Components:
 1. data_load: BigQuery → Parquet (train/valid/test split)
-2. train: Model training
+2. train: Model training (CustomTrainingJob - Vertex AI 학습 섹션에 표시)
 3. eval: Model evaluation (valid set)
 4. eval_test: Model evaluation (test set)
 5. model_upload: Model Registry 업로드 + Experiments 로깅
@@ -14,6 +14,9 @@ Components:
 
 from kfp import dsl
 from kfp.dsl import Artifact, Input, Output
+from google_cloud_pipeline_components.v1.custom_job import (
+    create_custom_training_job_from_component,
+)
 
 # Default configuration
 DEFAULT_PROJECT_ID = "heum-alfred-evidence-clf-dev"
@@ -94,6 +97,17 @@ def train_op(
             "--random_state", str(random_state),
         ],
     )
+
+
+# CustomTrainingJob wrapper: train 컴포넌트를 Vertex AI 학습 섹션에서 관리
+# - Vertex AI 콘솔 > 학습 에서 잡 이력 확인 가능
+# - CPU 인스턴스(n1-standard-4)로 실행
+train_custom_job_op = create_custom_training_job_from_component(
+    component_spec=train_op,
+    display_name="churn-model-training",
+    replica_count=1,
+    machine_type="n1-standard-4",
+)
 
 
 @dsl.container_component
@@ -199,8 +213,8 @@ def churn_training_pipeline(
     )
     data_load_task.set_display_name("Data Load")
 
-    # Step 2: Train model
-    train_task = train_op(
+    # Step 2: Train model (CustomTrainingJob - Vertex AI 학습 섹션에 표시)
+    train_task = train_custom_job_op(
         input_dataset=data_load_task.outputs["output_dataset"],
         feature_columns=feature_columns_str,
         label_column=label_column,
@@ -208,8 +222,10 @@ def churn_training_pipeline(
         n_estimators=n_estimators,
         max_depth=max_depth,
         random_state=random_state,
+        project=project_id,
+        location=region,
     )
-    train_task.set_display_name("Train Model")
+    train_task.set_display_name("Train Model (CustomJob)")
 
     # Step 3: Evaluate on validation set
     eval_valid_task = eval_op(
